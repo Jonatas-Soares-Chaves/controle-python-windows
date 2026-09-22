@@ -1,0 +1,31 @@
+{
+  "manifest_version": 3,
+  "name": "Controle Brilho - PiP Background",
+  "version": "1.4.1",
+  "action": {"default_popup": "popup.html", "default_title": "Escurecer esta guia"},
+  "description": "Controla videos em picture-in-picture pelo Controle de Brilho.",
+  "permissions": [
+    "scripting",
+    "tabs",
+    "storage"
+  ],
+  "host_permissions": [
+    "<all_urls>",
+    "http://127.0.0.1:17963/*"
+  ],
+  "background": {
+    "service_worker": "service_worker.js"
+  },
+  "content_scripts": [
+    {
+      "matches": [
+        "<all_urls>"
+      ],
+      "js": [
+        "content.js", "dim.js"
+      ],
+      "run_at": "document_start",
+      "all_frames": true
+    }
+  ]
+}

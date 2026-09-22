@@ -1,0 +1,15 @@
+__pycache__/
+*.py[cod]
+
+build/
+dist/
+test_chrome_local/
+test_edge_local/
+
+*.log
+*.tmp
+*.bak
+
+.env
+.venv/
+venv/
