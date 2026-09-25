@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Controle Brilho - PiP Background",
-  "version": "1.4.1",
+  "version": "1.4.2",
   "action": {"default_popup": "popup.html", "default_title": "Escurecer esta guia"},
   "description": "Controla videos em picture-in-picture pelo Controle de Brilho.",
   "permissions": [

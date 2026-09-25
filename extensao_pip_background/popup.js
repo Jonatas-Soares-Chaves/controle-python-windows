@@ -10,7 +10,8 @@ async function init() {
     const [tab] = await chrome.tabs.query({active: true, currentWindow: true});
     tabId = tab.id;
     await chrome.scripting.executeScript({target: {tabId}, files: ['dim.js']});
-    const result = await chrome.tabs.sendMessage(tabId, {type: 'dim:get'}, {frameId: 0});
+    const result = await chrome.runtime.sendMessage({type: 'dim:load', tabId, url: tab.url});
+    await chrome.tabs.sendMessage(tabId, {type: 'dim:set', level: result.level || 0}, {frameId: 0});
     slider.value = result.level;
     output.value = `${result.level}%`;
     slider.disabled = reset.disabled = false;

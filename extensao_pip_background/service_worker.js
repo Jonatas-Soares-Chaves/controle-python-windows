@@ -364,21 +364,84 @@ chrome.runtime.onStartup.addListener(pollLoop);
 chrome.tabs.onUpdated.addListener(pollLoop);
 chrome.tabs.onActivated.addListener(pollLoop);
 pollLoop();
-// Session storage survives worker restarts without applying old tab IDs to new sessions.
+
+function dimSiteKeyFromUrl(url) {
+  try {
+    const parsed = new URL(url || "");
+    if (parsed.protocol !== "http:" && parsed.protocol !== "https:" && parsed.protocol !== "file:") {
+      return "";
+    }
+    if (parsed.protocol === "file:") {
+      return "dim-site:file";
+    }
+    const host = parsed.hostname.replace(/^www\./i, "").toLowerCase();
+    return `dim-site:${parsed.protocol}//${host}`;
+  } catch (_error) {
+    return "";
+  }
+}
+
+async function dimSiteKeyForTab(tabId, fallbackUrl) {
+  const fallbackKey = dimSiteKeyFromUrl(fallbackUrl);
+  if (fallbackKey) {
+    return fallbackKey;
+  }
+
+  if (!Number.isInteger(tabId)) {
+    return "";
+  }
+
+  try {
+    const tab = await chrome.tabs.get(tabId);
+    return dimSiteKeyFromUrl(tab && tab.url);
+  } catch (_error) {
+    return "";
+  }
+}
+
+async function applyDimToMatchingTabs(siteKey, level) {
+  if (!siteKey) {
+    return;
+  }
+
+  const tabs = await chrome.tabs.query({});
+  await Promise.allSettled(
+    tabs.map(async (tab) => {
+      if (!tab.id || dimSiteKeyFromUrl(tab.url) !== siteKey) {
+        return;
+      }
+      try {
+        await chrome.tabs.sendMessage(tab.id, {type: "dim:set", level}, {frameId: 0});
+      } catch (_error) {
+      }
+    })
+  );
+}
+
 chrome.runtime.onMessage.addListener((message, sender, respond) => {
   if (message.type !== 'dim:load' && message.type !== 'dim:save') return;
-  const tabId = message.type === 'dim:load' ? sender.tab?.id : message.tabId;
-  if (!Number.isInteger(tabId)) { respond({ok: false}); return; }
-  const key = `dim:${tabId}`;
-  const operation = message.type === 'dim:load'
-    ? chrome.storage.session.get(key).then(data => ({level: data[key] || 0}))
-    : (async () => {
-        const level = Math.max(0, Math.min(95, Number(message.level) || 0));
-        await chrome.storage.session.set({[key]: level});
-        await chrome.tabs.sendMessage(tabId, {type: 'dim:set', level}, {frameId: 0});
-        return {ok: true};
-      })();
+  const tabId = message.type === 'dim:load' ? sender.tab?.id ?? message.tabId : message.tabId;
+  const url = message.url || sender.url || sender.tab?.url || "";
+  if (!Number.isInteger(tabId) && !url) { respond({ok: false}); return; }
+  const operation = (async () => {
+    const key = await dimSiteKeyForTab(tabId, url);
+    if (!key) {
+      return message.type === 'dim:load' ? {level: 0} : {ok: false};
+    }
+    if (message.type === 'dim:load') {
+      const data = await chrome.storage.local.get(key);
+      return {level: data[key] || 0};
+    }
+
+    const level = Math.max(0, Math.min(95, Number(message.level) || 0));
+    if (level) {
+      await chrome.storage.local.set({[key]: level});
+    } else {
+      await chrome.storage.local.remove(key);
+    }
+    await applyDimToMatchingTabs(key, level);
+    return {ok: true};
+  })();
   operation.then(respond).catch(() => respond({ok: false}));
   return true;
 });
-chrome.tabs.onRemoved.addListener(tabId => { chrome.storage.session.remove(`dim:${tabId}`).catch(() => {}); });
