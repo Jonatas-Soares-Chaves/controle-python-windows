@@ -1,5 +1,11 @@
 # Controle de Brilho Global para Windows
 
+## Cliques por tecla
+
+Na bandeja, marque `Alternar cliques por tecla`. Em `Configurar teclas...`, escolha ate tres teclas para o clique esquerdo e ate tres para o direito; uma tecla so tambem funciona. Os cliques acontecem na posicao atual do cursor, uma vez por pressionamento. Desmarque a opcao para suspender os cliques sem perder as teclas salvas. As duas acoes comecam desativadas e sem tecla atribuida.
+
+`F5` liga ou desliga os cliques por tecla por padrao. O atalho pode ser alterado em `Configurar teclas...`, na linha `Alternar cliques por tecla`.
+
 ## PiP fantasma
 
 Marque `PiP fantasma (clicar atraves)` na bandeja para os cliques atravessarem a janela PiP. A opcao fica salva e e aplicada tambem a novos PiPs reconhecidos. Desmarque para voltar a interagir com os controles do video. O atalho de guardar/restaurar continua disponivel nos dois modos. Ao sair do aplicativo, o bloqueio dos cliques e removido.

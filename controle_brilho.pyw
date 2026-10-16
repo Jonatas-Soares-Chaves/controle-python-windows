@@ -51,6 +51,9 @@ DEFAULT_BRIGHTNESS_HOTKEY = ["f1"]
 DEFAULT_PIP_HOTKEY = ["f2"]
 DEFAULT_GHOST_HOTKEY = ["f3"]
 DEFAULT_APP_GHOST_HOTKEY = ["f4"]
+DEFAULT_LEFT_CLICK_HOTKEY = []
+DEFAULT_RIGHT_CLICK_HOTKEY = []
+DEFAULT_MOUSE_KEYS_TOGGLE_HOTKEY = ["f5"]
 DEFAULT_PIP_OPACITY = 100
 DEFAULT_APP_GHOST_OPACITY = 70
 PIP_OPACITY_LEVELS = [100, 90, 80, 70, 60, 50, 40, 30, 20, 15, 10, 5, 2, 1]
@@ -130,6 +133,9 @@ HOTKEY_BRIGHTNESS_ID = 1
 HOTKEY_PIP_ID = 2
 HOTKEY_GHOST_ID = 3
 HOTKEY_APP_GHOST_ID = 4
+HOTKEY_LEFT_CLICK_ID = 5
+HOTKEY_RIGHT_CLICK_ID = 6
+HOTKEY_MOUSE_KEYS_TOGGLE_ID = 7
 SM_XVIRTUALSCREEN = 76
 SM_YVIRTUALSCREEN = 77
 SM_CXVIRTUALSCREEN = 78
@@ -343,6 +349,10 @@ brightness_hotkey = DEFAULT_BRIGHTNESS_HOTKEY.copy()
 pip_hotkey = DEFAULT_PIP_HOTKEY.copy()
 ghost_hotkey = DEFAULT_GHOST_HOTKEY.copy()
 app_ghost_hotkey = DEFAULT_APP_GHOST_HOTKEY.copy()
+left_click_hotkey = DEFAULT_LEFT_CLICK_HOTKEY.copy()
+right_click_hotkey = DEFAULT_RIGHT_CLICK_HOTKEY.copy()
+mouse_keys_enabled = False
+mouse_keys_toggle_hotkey = DEFAULT_MOUSE_KEYS_TOGGLE_HOTKEY.copy()
 pip_opacity = DEFAULT_PIP_OPACITY
 app_ghost_opacity = DEFAULT_APP_GHOST_OPACITY
 pip_ghost = False
@@ -742,18 +752,27 @@ hotkey_active = {
     HOTKEY_PIP_ID: False,
     HOTKEY_GHOST_ID: False,
     HOTKEY_APP_GHOST_ID: False,
+    HOTKEY_LEFT_CLICK_ID: False,
+    HOTKEY_RIGHT_CLICK_ID: False,
+    HOTKEY_MOUSE_KEYS_TOGGLE_ID: False,
 }
 hotkey_last_fire = {
     HOTKEY_BRIGHTNESS_ID: 0,
     HOTKEY_PIP_ID: 0,
     HOTKEY_GHOST_ID: 0,
     HOTKEY_APP_GHOST_ID: 0,
+    HOTKEY_LEFT_CLICK_ID: 0,
+    HOTKEY_RIGHT_CLICK_ID: 0,
+    HOTKEY_MOUSE_KEYS_TOGGLE_ID: 0,
 }
 hotkey_release_since = {
     HOTKEY_BRIGHTNESS_ID: 0,
     HOTKEY_PIP_ID: 0,
     HOTKEY_GHOST_ID: 0,
     HOTKEY_APP_GHOST_ID: 0,
+    HOTKEY_LEFT_CLICK_ID: 0,
+    HOTKEY_RIGHT_CLICK_ID: 0,
+    HOTKEY_MOUSE_KEYS_TOGGLE_ID: 0,
 }
 user32 = ctypes.windll.user32
 kernel32 = ctypes.windll.kernel32
@@ -1248,6 +1267,10 @@ def key_to_vk(key):
             return value
     if len(key) == 1 and key.isalnum():
         return ord(key.upper())
+    if len(key) == 1:
+        mapped = user32.VkKeyScanW(ctypes.c_wchar(key))
+        if mapped != -1:
+            return mapped & 0xFF
     if key.startswith("f") and key[1:].isdigit():
         number = int(key[1:])
         if 1 <= number <= 24:
@@ -1317,7 +1340,8 @@ def hotkey_from_vk(vk):
         if modifier_vk == vk:
             return build_hotkey(set(), key_name)
 
-    return build_hotkey(set(), key_name_from_vk(vk))
+    key_name = key_name_from_vk(vk)
+    return build_hotkey(set(), key_name if key_to_vk(key_name) == vk else f"vk{vk}")
 
 
 def first_new_capture_hotkey(baseline_vks):
@@ -1362,7 +1386,7 @@ def hotkey_from_tk_event(event):
 def load_config():
     global pip_ghost, app_ghost_enabled, app_ghost_target_key, app_ghost_target_label, app_ghost_click_through
     global extra_dim_levels, extra_dim_suspended
-    global BRIGHTNESS_LEVELS, SELECTED_MONITOR_KEYS, brightness_hotkey, pip_hotkey, ghost_hotkey, app_ghost_hotkey, pip_opacity, app_ghost_opacity
+    global BRIGHTNESS_LEVELS, SELECTED_MONITOR_KEYS, brightness_hotkey, pip_hotkey, ghost_hotkey, app_ghost_hotkey, left_click_hotkey, right_click_hotkey, mouse_keys_enabled, mouse_keys_toggle_hotkey, pip_opacity, app_ghost_opacity
 
     try:
         with open(config_path(), "r", encoding="utf-8-sig") as file:
@@ -1390,6 +1414,10 @@ def load_config():
         pip_hotkey = normalize_hotkey_keys(data.get("pip_hotkey"), DEFAULT_PIP_HOTKEY)
         ghost_hotkey = normalize_hotkey_keys(data.get("ghost_hotkey"), DEFAULT_GHOST_HOTKEY)
         app_ghost_hotkey = normalize_hotkey_keys(data.get("app_ghost_hotkey"), DEFAULT_APP_GHOST_HOTKEY)
+        left_click_hotkey = normalize_hotkey_keys(data.get("left_click_hotkey"), DEFAULT_LEFT_CLICK_HOTKEY)
+        right_click_hotkey = normalize_hotkey_keys(data.get("right_click_hotkey"), DEFAULT_RIGHT_CLICK_HOTKEY)
+        mouse_keys_enabled = data.get("mouse_keys_enabled", False) is True
+        mouse_keys_toggle_hotkey = normalize_hotkey_keys(data.get("mouse_keys_toggle_hotkey"), DEFAULT_MOUSE_KEYS_TOGGLE_HOTKEY)
         pip_opacity = clamp_pip_opacity(data.get("pip_opacity", DEFAULT_PIP_OPACITY))
         app_ghost_opacity = clamp_pip_opacity(data.get("app_ghost_opacity", DEFAULT_APP_GHOST_OPACITY))
         log_event(
@@ -1411,6 +1439,10 @@ def load_config():
         pip_hotkey = DEFAULT_PIP_HOTKEY.copy()
         ghost_hotkey = DEFAULT_GHOST_HOTKEY.copy()
         app_ghost_hotkey = DEFAULT_APP_GHOST_HOTKEY.copy()
+        left_click_hotkey = DEFAULT_LEFT_CLICK_HOTKEY.copy()
+        right_click_hotkey = DEFAULT_RIGHT_CLICK_HOTKEY.copy()
+        mouse_keys_enabled = False
+        mouse_keys_toggle_hotkey = DEFAULT_MOUSE_KEYS_TOGGLE_HOTKEY.copy()
         pip_opacity = DEFAULT_PIP_OPACITY
         app_ghost_opacity = DEFAULT_APP_GHOST_OPACITY
 
@@ -1426,6 +1458,10 @@ def save_config():
                     "pip_hotkey": pip_hotkey,
                     "ghost_hotkey": ghost_hotkey,
                     "app_ghost_hotkey": app_ghost_hotkey,
+                    "left_click_hotkey": left_click_hotkey,
+                    "right_click_hotkey": right_click_hotkey,
+                    "mouse_keys_enabled": mouse_keys_enabled,
+                    "mouse_keys_toggle_hotkey": mouse_keys_toggle_hotkey,
                     "pip_opacity": pip_opacity,
                     "app_ghost_opacity": app_ghost_opacity,
                     "pip_ghost": pip_ghost,
@@ -1875,6 +1911,13 @@ def open_settings_window():
             tk.StringVar(value=app_ghost_keys[index] if index < len(app_ghost_keys) else "")
             for index in range(3)
         ]
+        left_click_keys = normalize_hotkey_keys(left_click_hotkey, [])
+        right_click_keys = normalize_hotkey_keys(right_click_hotkey, [])
+        mouse_keys_toggle_keys = normalize_hotkey_keys(mouse_keys_toggle_hotkey, DEFAULT_MOUSE_KEYS_TOGGLE_HOTKEY)
+        left_click_hotkey_vars = [tk.StringVar(value=left_click_keys[index] if index < len(left_click_keys) else "") for index in range(3)]
+        right_click_hotkey_vars = [tk.StringVar(value=right_click_keys[index] if index < len(right_click_keys) else "") for index in range(3)]
+        mouse_keys_toggle_hotkey_vars = [tk.StringVar(value=mouse_keys_toggle_keys[index] if index < len(mouse_keys_toggle_keys) else "") for index in range(3)]
+        mouse_keys_enabled_var = tk.BooleanVar(value=mouse_keys_enabled)
         capture_status = tk.StringVar(value="")
         capturing = {
             "target": None,
@@ -1910,6 +1953,9 @@ def open_settings_window():
         ttk.Label(hotkey_frame, text="Hotkey PiP").grid(row=2, column=0, sticky="w", padx=(0, 10), pady=(8, 0))
         ttk.Label(hotkey_frame, text="Hotkey Fantasma").grid(row=4, column=0, sticky="w", padx=(0, 10), pady=(8, 0))
         ttk.Label(hotkey_frame, text="Hotkey App Fantasma").grid(row=6, column=0, sticky="w", padx=(0, 10), pady=(8, 0))
+        ttk.Label(hotkey_frame, text="Clique esquerdo").grid(row=8, column=0, sticky="w", padx=(0, 10), pady=(8, 0))
+        ttk.Label(hotkey_frame, text="Clique direito").grid(row=10, column=0, sticky="w", padx=(0, 10), pady=(8, 0))
+        ttk.Label(hotkey_frame, text="Alternar cliques por tecla").grid(row=12, column=0, sticky="w", padx=(0, 10), pady=(8, 0))
 
         def make_hotkey_boxes(row, variables):
             buttons = []
@@ -1930,6 +1976,9 @@ def open_settings_window():
         pip_capture_buttons = make_hotkey_boxes(2, pip_hotkey_vars)
         ghost_capture_buttons = make_hotkey_boxes(4, ghost_hotkey_vars)
         app_ghost_capture_buttons = make_hotkey_boxes(6, app_ghost_hotkey_vars)
+        left_click_capture_buttons = make_hotkey_boxes(8, left_click_hotkey_vars)
+        right_click_capture_buttons = make_hotkey_boxes(10, right_click_hotkey_vars)
+        mouse_keys_toggle_capture_buttons = make_hotkey_boxes(12, mouse_keys_toggle_hotkey_vars)
 
         def clear_hotkey_boxes(variables):
             for variable in variables:
@@ -1955,6 +2004,9 @@ def open_settings_window():
             text="Limpar",
             command=lambda: clear_hotkey_boxes(app_ghost_hotkey_vars),
         ).grid(row=7, column=0, sticky="we", padx=(0, 10), pady=(2, 0))
+        ttk.Button(hotkey_frame, text="Limpar", command=lambda: clear_hotkey_boxes(left_click_hotkey_vars)).grid(row=9, column=0, sticky="we", padx=(0, 10), pady=(2, 0))
+        ttk.Button(hotkey_frame, text="Limpar", command=lambda: clear_hotkey_boxes(right_click_hotkey_vars)).grid(row=11, column=0, sticky="we", padx=(0, 10), pady=(2, 0))
+        ttk.Button(hotkey_frame, text="Limpar", command=lambda: clear_hotkey_boxes(mouse_keys_toggle_hotkey_vars)).grid(row=13, column=0, sticky="we", padx=(0, 10), pady=(2, 0))
 
         def start_capture(target, button):
             if capturing["after_id"] is not None:
@@ -2092,8 +2144,14 @@ def open_settings_window():
                 )
             )
 
+        for variables, buttons in ((left_click_hotkey_vars, left_click_capture_buttons), (right_click_hotkey_vars, right_click_capture_buttons), (mouse_keys_toggle_hotkey_vars, mouse_keys_toggle_capture_buttons)):
+            for index, button in enumerate(buttons):
+                button.configure(command=lambda variable=variables[index], capture_button=button: start_capture(variable, capture_button))
+
+        ttk.Checkbutton(frame, text="Cliques por tecla ativos", variable=mouse_keys_enabled_var).grid(row=3, column=0, columnspan=3, sticky="w", pady=(8, 0))
+
         ttk.Label(frame, textvariable=capture_status).grid(
-            row=8,
+            row=4,
             column=0,
             columnspan=3,
             sticky="w",
@@ -2103,12 +2161,44 @@ def open_settings_window():
         def save_and_close():
             global settings_window
 
+            proposed = {
+                "brilho": normalize_hotkey_keys([variable.get() for variable in brightness_hotkey_vars], DEFAULT_BRIGHTNESS_HOTKEY),
+                "PiP": normalize_hotkey_keys([variable.get() for variable in pip_hotkey_vars], DEFAULT_PIP_HOTKEY),
+                "Modo Fantasma": normalize_hotkey_keys([variable.get() for variable in ghost_hotkey_vars], DEFAULT_GHOST_HOTKEY),
+                "App Fantasma": normalize_hotkey_keys([variable.get() for variable in app_ghost_hotkey_vars], DEFAULT_APP_GHOST_HOTKEY),
+                "clique esquerdo": normalize_hotkey_keys([variable.get() for variable in left_click_hotkey_vars], []),
+                "clique direito": normalize_hotkey_keys([variable.get() for variable in right_click_hotkey_vars], []),
+                "alternar cliques por tecla": normalize_hotkey_keys([variable.get() for variable in mouse_keys_toggle_hotkey_vars], DEFAULT_MOUSE_KEYS_TOGGLE_HOTKEY),
+            }
+            click_keys = [tuple(proposed[name]) for name in ("clique esquerdo", "clique direito")]
+            for name, keys in proposed.items():
+                if name in ("clique esquerdo", "clique direito") or not keys:
+                    continue
+                if tuple(keys) in click_keys:
+                    messagebox.showerror(APP_TITLE, f"A tecla de {name} tambem esta configurada para um clique.", parent=root)
+                    return
+            if click_keys[0] and click_keys[0] == click_keys[1]:
+                messagebox.showerror(APP_TITLE, "Escolha teclas diferentes para os dois cliques.", parent=root)
+                return
+            toggle_keys = tuple(proposed["alternar cliques por tecla"])
+            for name, keys in proposed.items():
+                if name != "alternar cliques por tecla" and tuple(keys) == toggle_keys:
+                    messagebox.showerror(APP_TITLE, f"A tecla de alternar cliques por tecla tambem esta configurada para {name}.", parent=root)
+                    return
+            if mouse_keys_enabled_var.get() and not any(click_keys):
+                messagebox.showerror(APP_TITLE, "Escolha ao menos uma tecla para ativar os cliques.", parent=root)
+                return
+
             set_cycle_level(0, level_one.get())
             set_cycle_level(1, level_two.get())
             set_brightness_hotkey([variable.get() for variable in brightness_hotkey_vars])
             set_pip_hotkey([variable.get() for variable in pip_hotkey_vars])
             set_ghost_hotkey([variable.get() for variable in ghost_hotkey_vars])
             set_app_ghost_hotkey([variable.get() for variable in app_ghost_hotkey_vars])
+            set_left_click_hotkey([variable.get() for variable in left_click_hotkey_vars])
+            set_right_click_hotkey([variable.get() for variable in right_click_hotkey_vars])
+            set_mouse_keys_toggle_hotkey([variable.get() for variable in mouse_keys_toggle_hotkey_vars])
+            set_mouse_keys_enabled(mouse_keys_enabled_var.get())
             finish_capture()
             root.destroy()
             settings_window = None
@@ -2128,7 +2218,7 @@ def open_settings_window():
             register_all_hotkeys()
 
         buttons = ttk.Frame(frame)
-        buttons.grid(row=9, column=0, columnspan=3, sticky="e", pady=(14, 0))
+        buttons.grid(row=5, column=0, columnspan=3, sticky="e", pady=(14, 0))
         ttk.Button(buttons, text="Cancelar", command=close_settings).grid(row=0, column=0, padx=(0, 8))
         ttk.Button(buttons, text="Salvar", command=save_and_close).grid(row=0, column=1)
 
@@ -2975,6 +3065,18 @@ def dispatch_hotkey(hotkey_id):
         threading.Thread(target=toggle_pip_ghost, daemon=True).start()
     elif hotkey_id == HOTKEY_APP_GHOST_ID:
         threading.Thread(target=toggle_app_ghost, daemon=True).start()
+    elif hotkey_id == HOTKEY_LEFT_CLICK_ID and mouse_keys_enabled:
+        click_at_cursor(False)
+    elif hotkey_id == HOTKEY_RIGHT_CLICK_ID and mouse_keys_enabled:
+        click_at_cursor(True)
+    elif hotkey_id == HOTKEY_MOUSE_KEYS_TOGGLE_ID:
+        set_mouse_keys_enabled(not mouse_keys_enabled, refresh_hotkeys=False)
+
+
+def click_at_cursor(right):
+    down, up = (0x0008, 0x0010) if right else (0x0002, 0x0004)
+    user32.mouse_event(down, 0, 0, 0, 0)
+    user32.mouse_event(up, 0, 0, 0, 0)
 
 
 def is_modifier_pressed(modifier):
@@ -3011,7 +3113,8 @@ def poll_hotkey(hotkey_id, hotkey):
     now = time.monotonic()
 
     if pressed and not was_active:
-        if now - hotkey_last_fire.get(hotkey_id, 0) < HOTKEY_COOLDOWN_SECONDS:
+        cooldown = 0.12 if hotkey_id in (HOTKEY_LEFT_CLICK_ID, HOTKEY_RIGHT_CLICK_ID) else HOTKEY_COOLDOWN_SECONDS
+        if now - hotkey_last_fire.get(hotkey_id, 0) < cooldown:
             hotkey_active[hotkey_id] = True
             hotkey_release_since[hotkey_id] = 0
             return
@@ -3027,7 +3130,7 @@ def poll_hotkey(hotkey_id, hotkey):
 
         if hotkey_release_since.get(hotkey_id, 0) == 0:
             hotkey_release_since[hotkey_id] = now
-        elif now - hotkey_release_since[hotkey_id] >= 0.15:
+        elif now - hotkey_release_since[hotkey_id] >= (0.03 if hotkey_id in (HOTKEY_LEFT_CLICK_ID, HOTKEY_RIGHT_CLICK_ID) else 0.15):
             hotkey_active[hotkey_id] = False
             hotkey_release_since[hotkey_id] = 0
 
@@ -3040,6 +3143,10 @@ def run_hotkey_loop():
                 poll_hotkey(HOTKEY_PIP_ID, pip_hotkey)
                 poll_hotkey(HOTKEY_GHOST_ID, ghost_hotkey)
                 poll_hotkey(HOTKEY_APP_GHOST_ID, app_ghost_hotkey)
+                poll_hotkey(HOTKEY_MOUSE_KEYS_TOGGLE_ID, mouse_keys_toggle_hotkey)
+                if mouse_keys_enabled:
+                    poll_hotkey(HOTKEY_LEFT_CLICK_ID, left_click_hotkey)
+                    poll_hotkey(HOTKEY_RIGHT_CLICK_ID, right_click_hotkey)
             time.sleep(0.025)
         except Exception:
             log_event("run_hotkey_loop error:\n" + traceback.format_exc())
@@ -3118,6 +3225,43 @@ def set_app_ghost_hotkey(value):
             tray_icon.update_menu()
         except Exception:
             pass
+
+
+def set_left_click_hotkey(value):
+    global left_click_hotkey
+    left_click_hotkey = normalize_hotkey_keys(value, [])
+    save_config()
+    request_hotkey_refresh()
+    if tray_icon:
+        tray_icon.update_menu()
+
+
+def set_right_click_hotkey(value):
+    global right_click_hotkey
+    right_click_hotkey = normalize_hotkey_keys(value, [])
+    save_config()
+    request_hotkey_refresh()
+    if tray_icon:
+        tray_icon.update_menu()
+
+
+def set_mouse_keys_toggle_hotkey(value):
+    global mouse_keys_toggle_hotkey
+    mouse_keys_toggle_hotkey = normalize_hotkey_keys(value, DEFAULT_MOUSE_KEYS_TOGGLE_HOTKEY)
+    save_config()
+    request_hotkey_refresh()
+    if tray_icon:
+        tray_icon.update_menu()
+
+
+def set_mouse_keys_enabled(enabled, refresh_hotkeys=True):
+    global mouse_keys_enabled
+    mouse_keys_enabled = bool(enabled)
+    if refresh_hotkeys:
+        request_hotkey_refresh()
+    save_config()
+    if tray_icon:
+        tray_icon.update_menu()
 
 
 def run_brightness_worker():
@@ -3484,6 +3628,12 @@ def build_menu():
             lambda *args: toggle_app_ghost(),
             enabled=lambda item: bool(app_ghost_target_key),
         ),
+        pystray.Menu.SEPARATOR,
+        section_label("CLIQUES POR TECLA"),
+        pystray.MenuItem(lambda item: f"Alternar cliques por tecla ({hotkey_label(mouse_keys_toggle_hotkey)}): {'ativados' if mouse_keys_enabled else 'desativados'}", lambda *args: set_mouse_keys_enabled(not mouse_keys_enabled), checked=lambda item: mouse_keys_enabled),
+        pystray.MenuItem(lambda item: f"Clique esquerdo ({hotkey_label(left_click_hotkey)})", lambda *args: click_at_cursor(False)),
+        pystray.MenuItem(lambda item: f"Clique direito ({hotkey_label(right_click_hotkey)})", lambda *args: click_at_cursor(True)),
+        pystray.MenuItem("Configurar teclas...", lambda *args: open_settings_window()),
         pystray.Menu.SEPARATOR,
         section_label("BRILHO"),
         pystray.MenuItem(lambda item: f"Nivel claro: {BRIGHTNESS_LEVELS[0]}%", field_one_menu),
