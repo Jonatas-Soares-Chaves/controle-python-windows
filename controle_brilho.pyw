@@ -776,6 +776,30 @@ hotkey_release_since = {
 }
 user32 = ctypes.windll.user32
 kernel32 = ctypes.windll.kernel32
+
+
+class MouseInput(ctypes.Structure):
+    _fields_ = [
+        ("dx", wintypes.LONG),
+        ("dy", wintypes.LONG),
+        ("mouseData", wintypes.DWORD),
+        ("dwFlags", wintypes.DWORD),
+        ("time", wintypes.DWORD),
+        ("dwExtraInfo", ctypes.c_size_t),
+    ]
+
+
+class InputData(ctypes.Union):
+    _fields_ = [("mi", MouseInput)]
+
+
+class WindowsInput(ctypes.Structure):
+    _fields_ = [("type", wintypes.DWORD), ("data", InputData)]
+
+
+send_input = ctypes.WinDLL("user32", use_last_error=True).SendInput
+send_input.argtypes = [wintypes.UINT, ctypes.POINTER(WindowsInput), ctypes.c_int]
+send_input.restype = wintypes.UINT
 KEY_NAME_TO_VK = {}
 pip_state = {
     "hidden": False,
@@ -3075,8 +3099,15 @@ def dispatch_hotkey(hotkey_id):
 
 def click_at_cursor(right):
     down, up = (0x0008, 0x0010) if right else (0x0002, 0x0004)
-    user32.mouse_event(down, 0, 0, 0, 0)
-    user32.mouse_event(up, 0, 0, 0, 0)
+    events = (WindowsInput * 2)(
+        WindowsInput(0, InputData(mi=MouseInput(0, 0, 0, down, 0, 0))),
+        WindowsInput(0, InputData(mi=MouseInput(0, 0, 0, up, 0, 0))),
+    )
+    sent = send_input(2, events, ctypes.sizeof(WindowsInput))
+    if sent == 1:
+        send_input(1, ctypes.byref(events, ctypes.sizeof(WindowsInput)), ctypes.sizeof(WindowsInput))
+    if sent != 2:
+        log_event(f"mouse click failed button={'right' if right else 'left'} sent={sent} error={ctypes.get_last_error()}")
 
 
 def is_modifier_pressed(modifier):
@@ -3259,9 +3290,15 @@ def set_mouse_keys_enabled(enabled, refresh_hotkeys=True):
     mouse_keys_enabled = bool(enabled)
     if refresh_hotkeys:
         request_hotkey_refresh()
+    for hotkey_id, hotkey in ((HOTKEY_LEFT_CLICK_ID, left_click_hotkey), (HOTKEY_RIGHT_CLICK_ID, right_click_hotkey)):
+        hotkey_active[hotkey_id] = mouse_keys_enabled and is_hotkey_pressed(hotkey)
+        hotkey_release_since[hotkey_id] = 0
     save_config()
     if tray_icon:
-        tray_icon.update_menu()
+        if refresh_hotkeys:
+            tray_icon.update_menu()
+        else:
+            threading.Thread(target=tray_icon.update_menu, daemon=True).start()
 
 
 def run_brightness_worker():
