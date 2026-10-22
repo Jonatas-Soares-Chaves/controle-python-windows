@@ -14,5 +14,10 @@ Se a extensao ja estiver carregada:
 1. Abra edge://extensions
 2. Encontre "Controle Brilho - PiP Background"
 3. Clique em Atualizar ou desative/ative a extensao
-4. Confirme que a versao exibida e 1.3.1
+4. Confirme que a versao exibida e 1.5.0
 5. Recarregue a aba do video
+
+O popup agora inclui brilho, volume individual por guia e autoclicker.
+O volume usa as permissoes tabCapture e offscreen para reproduzir e ajustar o audio localmente.
+No autoclicker, selecione um alvo antes de iniciar. O atalho padrao e F8 e pode ser capturado no popup.
+O atalho funciona na pagina em foco; Esc para os cliques.

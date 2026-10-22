@@ -1,19 +1,43 @@
 <!doctype html>
 <html lang="pt-BR">
 <meta charset="utf-8">
-<title>Escurecimento da guia</title>
-<style>
-body { width: 280px; margin: 0; padding: 18px; font: 14px system-ui; color: #202124; background: #fff; }
-h1 { font-size: 17px; margin: 0 0 18px; }
-label { display: flex; justify-content: space-between; }
-input { width: 100%; margin: 18px 0; accent-color: #167b58; }
-button { padding: 8px 12px; border: 1px solid #ccc; border-radius: 4px; background: #f5f5f5; cursor: pointer; }
-#status { margin-top: 12px; color: #a12323; }
-</style>
-<h1>Escurecimento da guia</h1>
-<label for="dim">Intensidade <output id="value">0%</output></label>
-<input id="dim" type="range" min="0" max="95" step="1" value="0" disabled>
-<button id="reset" type="button" disabled>Restaurar brilho</button>
-<div id="status" role="status"></div>
+<title>Controles da guia</title>
+<link rel="stylesheet" href="popup.css">
+<header><h1>Controles da guia</h1><p id="tab-name"></p></header>
+<main>
+  <section aria-labelledby="brightness-title">
+    <h2 id="brightness-title">Brilho</h2>
+    <label for="dim">Escurecimento <output id="value">0%</output></label>
+    <input id="dim" type="range" min="0" max="95" step="1" value="0" disabled>
+    <button id="reset" type="button" disabled>Restaurar brilho</button>
+    <p id="status" class="status" role="status"></p>
+  </section>
+  <section aria-labelledby="volume-title">
+    <h2 id="volume-title">Volume desta guia</h2>
+    <label for="volume">Volume <output id="volume-value">100%</output></label>
+    <input id="volume" type="range" min="0" max="100" step="1" value="100" disabled>
+    <div class="actions"><button id="mute" type="button" disabled>Silenciar</button><button id="volume-reset" type="button" disabled>Restaurar volume</button></div>
+    <p id="volume-status" class="status" role="status"></p>
+  </section>
+  <section aria-labelledby="clicker-title">
+    <div class="section-title"><h2 id="clicker-title">Autoclicker</h2><output id="click-count">0 cliques</output></div>
+    <fieldset id="clicker-settings" disabled>
+      <div class="grid">
+        <label>Cliques por segundo<input id="cps" type="number" min="1" max="50" step="1" value="10"></label>
+        <label>Botao<select id="click-button"><option value="left">Esquerdo</option><option value="right">Direito</option></select></label>
+        <label>Alvo<select id="click-mode"><option value="element">Elemento selecionado</option><option value="position">Posicao fixa</option></select></label>
+        <label>Limite de cliques<select id="limit-mode"><option value="unlimited">Sem limite</option><option value="limited">Definir limite</option></select></label>
+        <label id="limit-field" hidden>Quantidade<input id="click-limit" type="number" min="1" max="100000" value="100"></label>
+        <label>Atraso inicial (s)<input id="click-delay" type="number" min="0" max="60" step="0.5" value="0"></label>
+      </div>
+      <label class="check"><input id="pause-hidden" type="checkbox" checked>Parar ao trocar de guia</label>
+      <label for="shortcut">Atalho para iniciar/parar</label>
+      <div class="shortcut-row"><input id="shortcut" type="text" readonly value="F8" aria-label="Atalho"><button id="capture" type="button">Capturar</button><button id="clear-shortcut" type="button">Limpar</button></div>
+      <div class="actions"><button id="pick" type="button">Selecionar alvo</button><button id="toggle" class="primary" type="button" disabled>Iniciar</button></div>
+    </fieldset>
+    <p id="clicker-status" class="status" role="status">Carregando...</p>
+  </section>
+</main>
+<script src="clicker-config.js"></script>
 <script src="popup.js"></script>
 </html>

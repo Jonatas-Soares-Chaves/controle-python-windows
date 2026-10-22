@@ -1,5 +1,18 @@
 # Controle de Brilho Global para Windows
 
+## Controles no popup da extensao
+
+Abra o icone da extensao para ajustar brilho, volume e autoclicker da guia atual.
+
+- Volume de 0 a 100%, silenciar e restaurar. Cada guia tem seu proprio volume, inclusive duas guias do mesmo site. O audio completo da guia passa por um controle local; nenhum audio e gravado ou enviado. O ajuste continua ao fechar o popup e termina ao fechar a guia. Restaurar 100% libera o controle. O navegador pode exibir seu indicador de captura de audio.
+- O autoclicker permite de 1 a 50 cliques por segundo, botao esquerdo ou direito, elemento ou posicao fixa, limite opcional, atraso inicial e parada ao trocar de guia. A velocidade efetiva pode ser menor se o navegador limitar os temporizadores.
+- Clique em `Selecionar alvo` e depois no ponto da pagina. Reabra o popup e clique em `Iniciar`, ou pressione o atalho escolhido. `F8` e o padrao; `Capturar` grava uma tecla ou combinacao. O atalho atua na pagina em foco e ignora campos de texto. `Esc` para a execucao. Recarregar ou sair da pagina tambem encerra os cliques; o alvo deve ser selecionado novamente.
+- As configuracoes do autoclicker ficam salvas. A execucao nao inicia automaticamente. Os cliques sao eventos da pagina: alguns jogos e sites aceitam apenas cliques fisicos e podem ignora-los. O autoclicker nao age fora do navegador nem simula conclusao de anuncios ou recompensas.
+
+Requer Chrome/Edge 116 ou superior. Ao atualizar para 1.5.0, recarregue a extensao e as guias abertas. As novas permissoes de audio sao necessarias para controlar sons de jogos, videos e frames juntos. Paginas internas e protegidas do navegador nao permitem todos os controles.
+
+Verificacoes automatizadas: `node --test tests/tab-tools.test.cjs`.
+
 ## Cliques por tecla
 
 Na bandeja, marque `Alternar cliques por tecla`. Em `Configurar teclas...`, escolha ate tres teclas para o clique esquerdo e ate tres para o direito; uma tecla so tambem funciona. Os cliques acontecem na posicao atual do cursor, uma vez por pressionamento. Desmarque a opcao para suspender os cliques sem perder as teclas salvas. As duas acoes comecam desativadas e sem tecla atribuida.

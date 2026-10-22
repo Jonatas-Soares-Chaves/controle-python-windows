@@ -1,13 +1,17 @@
 {
   "manifest_version": 3,
   "name": "Controle Brilho - PiP Background",
-  "version": "1.4.3",
-  "action": {"default_popup": "popup.html", "default_title": "Escurecer esta guia"},
-  "description": "Controla videos em picture-in-picture pelo Controle de Brilho.",
+  "version": "1.5.0",
+  "minimum_chrome_version": "116",
+  "action": {"default_popup": "popup.html", "default_title": "Controles da guia"},
+  "description": "Brilho, volume individual, autoclicker e controle de picture-in-picture.",
   "permissions": [
     "scripting",
     "tabs",
-    "storage"
+    "storage",
+    "activeTab",
+    "tabCapture",
+    "offscreen"
   ],
   "host_permissions": [
     "<all_urls>",
@@ -22,7 +26,7 @@
         "<all_urls>"
       ],
       "js": [
-        "content.js", "dim.js"
+        "content.js", "dim.js", "clicker-config.js", "clicker.js"
       ],
       "run_at": "document_start",
       "all_frames": true

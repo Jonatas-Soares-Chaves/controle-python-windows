@@ -445,3 +445,5 @@ chrome.runtime.onMessage.addListener((message, sender, respond) => {
   operation.then(respond).catch(() => respond({ok: false}));
   return true;
 });
+
+importScripts('clicker-config.js', 'tab-tools-worker.js');
