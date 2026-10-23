@@ -1,5 +1,14 @@
 # Controle de Brilho Global para Windows
 
+## Painel da bandeja
+
+Clique com o botao esquerdo ou direito no icone para abrir `Controles do Windows`.
+O painel compacto usa o mesmo tema escuro e verde do popup da extensao e tem abas para Brilho, PiP, Apps, Teclas e Sistema.
+Brilho claro/escuro, brilho individual do monitor, filtro extra e opacidades sao ajustados por barras arrastaveis.
+As listas selecionam o monitor e o aplicativo; as caixas ativam ou desativam os modos.
+A altura acompanha a aba e a area util do monitor, com rolagem quando necessario. `Esc` fecha somente o painel.
+Os ajustes finais das barras sao enviados mesmo ao fechar o painel. As configuracoes e atalhos anteriores continuam salvos.
+
 ## Controles no popup da extensao
 
 Abra o icone da extensao para ajustar brilho, volume e autoclicker da guia atual.

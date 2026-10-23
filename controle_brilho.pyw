@@ -1959,12 +1959,12 @@ def open_settings_window():
         frame.grid(row=0, column=0, sticky="nsew")
 
         ttk.Label(frame, text="Campo 1").grid(row=0, column=0, sticky="w", padx=(0, 10))
-        spin_one = ttk.Spinbox(frame, from_=0, to=100, width=5, textvariable=level_one)
+        spin_one = tk.Scale(frame, from_=0, to=100, orient="horizontal", length=200, resolution=1, variable=level_one)
         spin_one.grid(row=0, column=1, sticky="w")
         ttk.Label(frame, text="%").grid(row=0, column=2, sticky="w", padx=(4, 0))
 
         ttk.Label(frame, text="Campo 2").grid(row=1, column=0, sticky="w", padx=(0, 10), pady=(8, 0))
-        spin_two = ttk.Spinbox(frame, from_=0, to=100, width=5, textvariable=level_two)
+        spin_two = tk.Scale(frame, from_=0, to=100, orient="horizontal", length=200, resolution=1, variable=level_two)
         spin_two.grid(row=1, column=1, sticky="w", pady=(8, 0))
         ttk.Label(frame, text="%").grid(row=1, column=2, sticky="w", padx=(4, 0), pady=(8, 0))
 
@@ -3728,9 +3728,9 @@ class StyledTrayIcon(pystray.Icon):
     def _on_notify(self, wparam, lparam):
         if lparam in (win32con.WM_LBUTTONUP, win32con.WM_RBUTTONUP):
             try:
-                super()._on_notify(wparam, win32con.WM_RBUTTONUP)
+                open_tray_menu(sys.modules[__name__])
             except Exception:
-                log_event("tray native menu failed:\n" + traceback.format_exc())
+                log_event("tray panel dispatch failed:\n" + traceback.format_exc())
         else:
             super()._on_notify(wparam, lparam)
 
