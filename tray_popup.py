@@ -46,6 +46,9 @@ class TrayPanel:
         self.display_key = ""
         self.filter_key = ""
         self.widgets = {}
+        self.filter_button = None
+        self.wheel_delta = 0
+        self.scroll_drag_offset = 0
         self.point = point
         threading.Thread(target=self.worker, daemon=True).start()
         self.shell = tk.Frame(self.root, bg=BG)
@@ -68,26 +71,26 @@ class TrayPanel:
             self.tab_buttons[name] = button
         tk.Frame(self.shell, height=1, bg=LINE).pack(fill="x", pady=(10, 0))
         area = tk.Frame(self.shell, bg=BG)
-        area.pack(fill="both", expand=True)
-        self.canvas = tk.Canvas(area, bg=BG, highlightthickness=0)
+        self.canvas = tk.Canvas(area, bg=BG, highlightthickness=0, yscrollincrement=22)
         self.scrollbar = tk.Canvas(area, width=8, bg=BG, highlightthickness=0)
         self.scrollbar.pack(side="right", fill="y")
         self.scroll_fractions = (0.0, 1.0)
         self.scrollbar.bind("<Configure>", lambda event: self.paint_scrollbar())
-        self.scrollbar.bind("<Button-1>", self.drag_scrollbar)
+        self.scrollbar.bind("<Button-1>", self.start_scrollbar_drag)
         self.scrollbar.bind("<B1-Motion>", self.drag_scrollbar)
         self.canvas.pack(side="left", fill="both", expand=True)
         self.canvas.configure(yscrollcommand=self.update_scrollbar)
         self.body = tk.Frame(self.canvas, bg=BG, padx=16, pady=12)
         self.body_id = self.canvas.create_window((0, 0), window=self.body, anchor="nw")
-        self.body.bind("<Configure>", lambda event: self.canvas.configure(scrollregion=self.canvas.bbox("all")))
-        self.canvas.bind("<Configure>", lambda event: self.canvas.itemconfigure(self.body_id, width=event.width))
+        self.body.bind("<Configure>", lambda event: self.update_scrollregion())
+        self.canvas.bind("<Configure>", self.canvas_resized)
         self.root.bind("<MouseWheel>", self.scroll)
         footer = tk.Frame(self.shell, bg=BG, padx=16, pady=10)
-        footer.pack(fill="x")
+        footer.pack(side="bottom", fill="x")
         self.button(footer, "Configurar atalhos", self.settings).pack(side="left")
         self.status = self.label(footer, "", color=MUTED, size=8)
         self.status.pack(side="right")
+        area.pack(fill="both", expand=True)
         self.fixed_sections = (header, quick, bar, footer)
         self.root.bind("<Escape>", lambda event: self.close())
         self.root.bind("<FocusOut>", self.dismiss)
@@ -179,6 +182,7 @@ class TrayPanel:
             self.debounce(key, lambda n=int(control.get()): set_value(n))
             self.flush()
         control.bind("<ButtonRelease-1>", released)
+        control.bind("<MouseWheel>", lambda event: "break")
         control.bind("<KeyRelease>", lambda event: self.debounce(key, lambda n=int(control.get()): set_value(n)))
         self.tracked.append((value, get, output))
         self.widgets[key] = control
@@ -212,6 +216,7 @@ class TrayPanel:
         self.tab = name
         self.tracked.clear()
         self.widgets.clear()
+        self.filter_button = None
         for child in self.body.winfo_children():
             child.destroy()
         for key, button in self.tab_buttons.items():
@@ -246,7 +251,7 @@ class TrayPanel:
             self.heading("Sistema")
             self.check("Abrir junto com o Windows", app.is_startup_enabled, app.set_startup_enabled)
             self.button(self.body, "Atualizar monitores", lambda: self.submit(lambda: app.load_displays(force=True))).pack(fill="x", pady=12)
-            self.button(self.body, "Desativar filtros", lambda: self.submit(app.clear_extra_dim)).pack(fill="x", pady=4)
+            self.filter_toggle()
             self.button(self.body, "Encerrar aplicativo", lambda: self.exit_app()).pack(fill="x", pady=(20, 4))
         self.request_resize()
 
@@ -262,6 +267,9 @@ class TrayPanel:
         self.root.update_idletasks()
         height = min(554, max(280, self.body.winfo_reqheight() + sum(widget.winfo_reqheight() for widget in self.fixed_sections) + 30))
         self.root.geometry(popup_geometry(self.point, self.work, height=height))
+        self.root.update_idletasks()
+        self.update_scrollregion()
+        self.canvas.yview_moveto(0)
 
     def render_monitors(self, displays):
         for child in self.body.winfo_children():
@@ -297,7 +305,18 @@ class TrayPanel:
             self.combo("Filtro de escurecimento", labels, labels[selected], lambda index: self.choose_filter(filters[index]["Device"]))
             self.slider("extra-dim", "Escurecimento extra", lambda: app.extra_dim_levels.get(device, 0),
                         lambda value: app.set_extra_dim(device, value), maximum=95)
+            self.filter_toggle()
         self.request_resize()
+
+    def filter_toggle(self):
+        self.filter_button = self.button(self.body, "", lambda: self.submit(
+            lambda: self.app.set_extra_dim_enabled(not self.app.is_extra_dim_enabled())))
+        self.filter_button.pack(fill="x", pady=4)
+        self.update_filter_button()
+
+    def update_filter_button(self):
+        if self.filter_button:
+            self.filter_button.configure(text="Desativar filtro" if self.app.is_extra_dim_enabled() else "Ativar filtro")
 
     def set_read_brightness(self, value, current):
         if self.tab != "Brilho" or "monitor-brightness" not in self.widgets or self.dragging:
@@ -349,6 +368,7 @@ class TrayPanel:
                 except Exception:
                     self.app.log_event("tray panel refresh failed:\n" + self.app.traceback.format_exc())
         if not self.dragging and not self.pending and not self.inflight:
+            self.update_filter_button()
             for variable, get, output in self.tracked:
                 try:
                     value = get()
@@ -361,8 +381,21 @@ class TrayPanel:
         self.poll_id = self.root.after(250, self.poll)
 
     def scroll(self, event):
-        self.canvas.yview_scroll(-int(event.delta / 120), "units")
+        if isinstance(event.widget, (tk.Scale, ttk.Combobox)) or self.body.winfo_reqheight() <= self.canvas.winfo_height():
+            return
+        self.wheel_delta += event.delta
+        steps = int(self.wheel_delta / 120)
+        self.wheel_delta -= steps * 120
+        self.canvas.yview_scroll(-steps, "units")
         return "break"
+
+    def canvas_resized(self, event):
+        self.canvas.itemconfigure(self.body_id, width=event.width)
+        self.update_scrollregion()
+
+    def update_scrollregion(self):
+        self.canvas.configure(scrollregion=(0, 0, self.canvas.winfo_width(),
+                                           max(self.body.winfo_reqheight(), self.canvas.winfo_height())))
 
     def update_scrollbar(self, first, last):
         self.scroll_fractions = (float(first), float(last))
@@ -376,9 +409,14 @@ class TrayPanel:
             self.scrollbar.create_rectangle(1, first * height, 7, max(first * height + 14, last * height), fill="#73787b", outline="")
 
     def drag_scrollbar(self, event):
+        height = max(1, self.scrollbar.winfo_height())
+        self.canvas.yview_moveto(max(0, min(1, (event.y - self.scroll_drag_offset) / height)))
+
+    def start_scrollbar_drag(self, event):
         first, last = self.scroll_fractions
         height = max(1, self.scrollbar.winfo_height())
-        self.canvas.yview_moveto(max(0, min(1, event.y / height - (last - first) / 2)))
+        self.scroll_drag_offset = event.y - first * height if first * height <= event.y <= last * height else (last - first) * height / 2
+        self.drag_scrollbar(event)
 
     def settings(self):
         self.close()

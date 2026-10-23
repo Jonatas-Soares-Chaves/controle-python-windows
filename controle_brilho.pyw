@@ -1260,7 +1260,14 @@ def normalize_hotkey_keys(value, default):
 
 def hotkey_label(value):
     keys = normalize_hotkey_keys(value, [])
-    return " + ".join(keys) if keys else "nenhuma"
+    labels = []
+    for key in keys:
+        if key.startswith("vk") and key[2:].isdigit():
+            name = key_name_from_vk(int(key[2:]))
+            labels.append("Tecla especial" if name.startswith("vk") else name)
+        else:
+            labels.append(key)
+    return " + ".join(labels) if labels else "nenhuma"
 
 
 def normalize_hotkey(value, default):
@@ -1631,11 +1638,8 @@ def make_display_key(info, index):
 
 
 def make_display_label(info, index):
-    name = display_info_value(info, "name", "model") or f"Monitor {index + 1}"
-    method = display_info_value(info, "method")
-    if method:
-        return f"Monitor {index + 1}: {name} ({method})"
-    return f"Monitor {index + 1}: {name}"
+    name = display_info_value(info, "name", "model")
+    return f"Monitor {index + 1}: {name}" if name else f"Monitor {index + 1}"
 
 
 def load_displays(force=False):
@@ -1919,28 +1923,40 @@ def open_settings_window():
         pip_keys = normalize_hotkey_keys(pip_hotkey, DEFAULT_PIP_HOTKEY)
         ghost_keys = normalize_hotkey_keys(ghost_hotkey, DEFAULT_GHOST_HOTKEY)
         app_ghost_keys = normalize_hotkey_keys(app_ghost_hotkey, DEFAULT_APP_GHOST_HOTKEY)
+        class CapturedKeyVar(tk.StringVar):
+            def __init__(self, value):
+                self.key = value
+                super().__init__(value=hotkey_label([value]) if value else "")
+
+            def get(self):
+                return self.key
+
+            def set(self, value):
+                self.key = value
+                super().set(hotkey_label([value]) if value else "")
+
         brightness_hotkey_vars = [
-            tk.StringVar(value=brightness_keys[index] if index < len(brightness_keys) else "")
+            CapturedKeyVar(value=brightness_keys[index] if index < len(brightness_keys) else "")
             for index in range(3)
         ]
         pip_hotkey_vars = [
-            tk.StringVar(value=pip_keys[index] if index < len(pip_keys) else "")
+            CapturedKeyVar(value=pip_keys[index] if index < len(pip_keys) else "")
             for index in range(3)
         ]
         ghost_hotkey_vars = [
-            tk.StringVar(value=ghost_keys[index] if index < len(ghost_keys) else "")
+            CapturedKeyVar(value=ghost_keys[index] if index < len(ghost_keys) else "")
             for index in range(3)
         ]
         app_ghost_hotkey_vars = [
-            tk.StringVar(value=app_ghost_keys[index] if index < len(app_ghost_keys) else "")
+            CapturedKeyVar(value=app_ghost_keys[index] if index < len(app_ghost_keys) else "")
             for index in range(3)
         ]
         left_click_keys = normalize_hotkey_keys(left_click_hotkey, [])
         right_click_keys = normalize_hotkey_keys(right_click_hotkey, [])
         mouse_keys_toggle_keys = normalize_hotkey_keys(mouse_keys_toggle_hotkey, DEFAULT_MOUSE_KEYS_TOGGLE_HOTKEY)
-        left_click_hotkey_vars = [tk.StringVar(value=left_click_keys[index] if index < len(left_click_keys) else "") for index in range(3)]
-        right_click_hotkey_vars = [tk.StringVar(value=right_click_keys[index] if index < len(right_click_keys) else "") for index in range(3)]
-        mouse_keys_toggle_hotkey_vars = [tk.StringVar(value=mouse_keys_toggle_keys[index] if index < len(mouse_keys_toggle_keys) else "") for index in range(3)]
+        left_click_hotkey_vars = [CapturedKeyVar(value=left_click_keys[index] if index < len(left_click_keys) else "") for index in range(3)]
+        right_click_hotkey_vars = [CapturedKeyVar(value=right_click_keys[index] if index < len(right_click_keys) else "") for index in range(3)]
+        mouse_keys_toggle_hotkey_vars = [CapturedKeyVar(value=mouse_keys_toggle_keys[index] if index < len(mouse_keys_toggle_keys) else "") for index in range(3)]
         mouse_keys_enabled_var = tk.BooleanVar(value=mouse_keys_enabled)
         capture_status = tk.StringVar(value="")
         capturing = {
@@ -1958,12 +1974,12 @@ def open_settings_window():
         frame = ttk.Frame(root, padding=14)
         frame.grid(row=0, column=0, sticky="nsew")
 
-        ttk.Label(frame, text="Campo 1").grid(row=0, column=0, sticky="w", padx=(0, 10))
+        ttk.Label(frame, text="Nivel claro").grid(row=0, column=0, sticky="w", padx=(0, 10))
         spin_one = tk.Scale(frame, from_=0, to=100, orient="horizontal", length=200, resolution=1, variable=level_one)
         spin_one.grid(row=0, column=1, sticky="w")
         ttk.Label(frame, text="%").grid(row=0, column=2, sticky="w", padx=(4, 0))
 
-        ttk.Label(frame, text="Campo 2").grid(row=1, column=0, sticky="w", padx=(0, 10), pady=(8, 0))
+        ttk.Label(frame, text="Nivel escuro").grid(row=1, column=0, sticky="w", padx=(0, 10), pady=(8, 0))
         spin_two = tk.Scale(frame, from_=0, to=100, orient="horizontal", length=200, resolution=1, variable=level_two)
         spin_two.grid(row=1, column=1, sticky="w", pady=(8, 0))
         ttk.Label(frame, text="%").grid(row=1, column=2, sticky="w", padx=(4, 0), pady=(8, 0))
@@ -1973,10 +1989,10 @@ def open_settings_window():
         for column in range(1, 4):
             hotkey_frame.columnconfigure(column, weight=1)
 
-        ttk.Label(hotkey_frame, text="Hotkey brilho").grid(row=0, column=0, sticky="w", padx=(0, 10))
-        ttk.Label(hotkey_frame, text="Hotkey PiP").grid(row=2, column=0, sticky="w", padx=(0, 10), pady=(8, 0))
-        ttk.Label(hotkey_frame, text="Hotkey Fantasma").grid(row=4, column=0, sticky="w", padx=(0, 10), pady=(8, 0))
-        ttk.Label(hotkey_frame, text="Hotkey App Fantasma").grid(row=6, column=0, sticky="w", padx=(0, 10), pady=(8, 0))
+        ttk.Label(hotkey_frame, text="Atalho de brilho").grid(row=0, column=0, sticky="w", padx=(0, 10))
+        ttk.Label(hotkey_frame, text="Atalho do PiP").grid(row=2, column=0, sticky="w", padx=(0, 10), pady=(8, 0))
+        ttk.Label(hotkey_frame, text="Modo Fantasma").grid(row=4, column=0, sticky="w", padx=(0, 10), pady=(8, 0))
+        ttk.Label(hotkey_frame, text="App Fantasma").grid(row=6, column=0, sticky="w", padx=(0, 10), pady=(8, 0))
         ttk.Label(hotkey_frame, text="Clique esquerdo").grid(row=8, column=0, sticky="w", padx=(0, 10), pady=(8, 0))
         ttk.Label(hotkey_frame, text="Clique direito").grid(row=10, column=0, sticky="w", padx=(0, 10), pady=(8, 0))
         ttk.Label(hotkey_frame, text="Alternar cliques por tecla").grid(row=12, column=0, sticky="w", padx=(0, 10), pady=(8, 0))
@@ -2107,7 +2123,7 @@ def open_settings_window():
 
                 if capturing["stable_count"] >= 2:
                     capturing["target"].set(hotkey)
-                    finish_capture(f"Capturado: {hotkey}")
+                    finish_capture(f"Capturado: {hotkey_label([hotkey])}")
                     return
             else:
                 capturing["baseline_vks"] = current_vks
@@ -2129,7 +2145,7 @@ def open_settings_window():
             hotkey = hotkey_from_tk_event(event)
             if hotkey:
                 capturing["target"].set(hotkey)
-                finish_capture(f"Capturado: {hotkey}")
+                finish_capture(f"Capturado: {hotkey_label([hotkey])}")
                 return "break"
 
             return "break"
@@ -3442,6 +3458,21 @@ def set_extra_dim(device, value):
         tray_icon.update_menu()
 
 
+def is_extra_dim_enabled():
+    return not extra_dim_suspended and any(extra_dim_levels.values())
+
+
+def set_extra_dim_enabled(enabled):
+    global extra_dim_suspended
+    if enabled and not any(extra_dim_levels.values()):
+        for info in dim_monitors():
+            extra_dim_levels[info["Device"]] = 20
+    extra_dim_suspended = not bool(enabled)
+    save_config()
+    if tray_icon:
+        tray_icon.update_menu()
+
+
 def clear_extra_dim():
     global extra_dim_suspended
     extra_dim_levels.clear()
@@ -3489,7 +3520,8 @@ def sync_extra_dim():
 
 
 def build_extra_dim_menu():
-    items = [pystray.MenuItem("Desativar em todas as telas", lambda *args: clear_extra_dim())]
+    items = [pystray.MenuItem(lambda item: "Desativar filtro" if is_extra_dim_enabled() else "Ativar filtro",
+                             lambda *args: set_extra_dim_enabled(not is_extra_dim_enabled()))]
     for index, info in enumerate(dim_monitors(), 1):
         device = info["Device"]
         items.append(pystray.MenuItem(

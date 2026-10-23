@@ -23,7 +23,7 @@ app = SimpleNamespace(
     app_ghost_opacity=45, app_ghost_enabled=False, app_ghost_click_through=False,
     app_ghost_target_key="example", app_ghost_target_label="Aplicativo de teste",
     mouse_keys_enabled=False, left_click_hotkey=["z"], right_click_hotkey=["x"],
-    mouse_keys_toggle_hotkey=["f5"], extra_dim_levels={"test": 20},
+    mouse_keys_toggle_hotkey=["f5"], extra_dim_levels={"test": 20}, extra_dim_suspended=False,
 )
 app.log_event = lambda message: print(message, flush=True)
 app.load_displays = lambda **kwargs: [{"key": "test", "label": "Monitor principal", "display": display}]
@@ -34,6 +34,8 @@ app.set_cycle_level = lambda index, value, apply_now=False: app.BRIGHTNESS_LEVEL
 app.set_monitor_brightness = lambda key, value: setattr(display, "value", value)
 app.set_extra_dim = lambda key, value: app.extra_dim_levels.__setitem__(key, value)
 app.clear_extra_dim = lambda: app.extra_dim_levels.clear()
+app.is_extra_dim_enabled = lambda: not app.extra_dim_suspended and any(app.extra_dim_levels.values())
+app.set_extra_dim_enabled = lambda value: setattr(app, "extra_dim_suspended", not value)
 app.request_next_brightness = lambda: None
 app.toggle_pip_window = lambda: None
 app.toggle_pip_ghost = lambda: setattr(app, "pip_ghost", not app.pip_ghost)
@@ -65,4 +67,24 @@ def check_closed():
 
 root.after(100, check_closed)
 root.after(120000, root.destroy)
+if "--check-layout" in sys.argv:
+    tabs = iter(("Brilho", "PiP", "Apps", "Teclas", "Sistema"))
+
+    def next_tab():
+        name = next(tabs, None)
+        if name is None:
+            panel.close()
+            return
+        panel.render(name)
+        root.after(700, lambda: verify_tab(name))
+
+    def verify_tab(name):
+        footer = panel.fixed_sections[-1]
+        assert footer.winfo_y() + footer.winfo_height() <= panel.shell.winfo_height(), name
+        assert footer.winfo_height() >= 30, name
+        assert panel.canvas.yview()[0] == 0, name
+        print(f"{name}: footer visible, scroll at top, height={panel.root.winfo_height()}", flush=True)
+        next_tab()
+
+    root.after(700, next_tab)
 root.mainloop()
